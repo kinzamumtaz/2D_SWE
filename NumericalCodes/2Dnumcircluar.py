@@ -16,7 +16,7 @@ Lx = 100.0  # Length of the domain in the x-direction
 Ly = 100.0  # Length of the domain in the y-direction
 Nx = 401   # Number of grid points in the x-direction
 Ny = 401   # Number of grid points in the y-direction
-T = 0.4    # Total simulation time
+T = 2.0   # Total simulation time
 dt = 0.0001  # Time step (set based on CFL condition)
 g = 2.0     # Gravity constant
 h_l = 10.0   # Height upstream of the dam
@@ -60,91 +60,89 @@ h = h0.copy()
 u = np.zeros_like(h)
 v = np.zeros_like(h)
 
+
+fig = plt.figure(figsize=(14, 6))
+ax1 = fig.add_subplot(1, 2, 1, projection='3d')
+ax1.plot_surface(X, Y, h, cmap='viridis', edgecolor='none')
+ax1.set_title(f'Initial Condition - Surface')
+ax1.set_xlabel('X')
+ax1.set_ylabel('Y')
+ax1.set_zlabel('Water Height')
+
+ax2 = fig.add_subplot(1, 2, 2)
+im = ax2.imshow(h, extent=[0, Lx, 0, Ly], origin='lower',
+                cmap='viridis', aspect='auto')
+plt.colorbar(im, ax=ax2, label='Water Height')
+ax2.set_title(f'Initial Condition - Contour')
+ax2.set_xlabel('X')
+ax2.set_ylabel('Y')
+
+plt.tight_layout()
+plt.show()  # instead of save
+
 # Arrays to save the numerical solutions
-# save_steps = np.arange(0, int(T / dt), 1000)  # Save every 1000 steps
 saved_h = []
-# saved_u = []
-# saved_v = []
 
-# Plot the initial condition
-fig = plt.figure(figsize=(10, 6))
-ax = fig.add_subplot(111, projection='3d')
-ax.plot_surface(X, Y, h0, cmap='viridis')
-ax.set_title('Initial Condition of Dam Break')
-ax.set_xlabel('X')
-ax.set_ylabel('Y')
-ax.set_zlabel('Water Height')
-plt.show()
+# Times to save
+save_times = [0.0, 0.5, 0.8, 1.0, 1.5, 2.0]
+save_steps = [int(t / dt) for t in save_times]
 
-# Lax-Wendroff Scheme
-for step in range(int(T / dt)):
+# Create output folder
+import os
+os.makedirs("solution_outputs_numerical_circular", exist_ok=True)
+
+# Time integration loop
+for step in range(int(max(save_times) / dt) + 1):
     # Predictor step (half-step forward)
     h_half = h.copy()
     u_half = u.copy()
     v_half = v.copy()
 
-    # Update intermediate height at half time step
     h_half[1:-1, 1:-1] = h[1:-1, 1:-1] - (dt / (2 * dx)) * (h[1:-1, 1:-1] * (u[2:, 1:-1] - u[:-2, 1:-1]))
     h_half[1:-1, 1:-1] -= (dt / (2 * dy)) * (h[1:-1, 1:-1] * (v[1:-1, 2:] - v[1:-1, :-2]))
 
-    # Update intermediate velocities at half time step
     u_half[1:-1, 1:-1] = u[1:-1, 1:-1] - (g * dt / (2 * dx)) * (h[2:, 1:-1] - h[:-2, 1:-1])
     v_half[1:-1, 1:-1] = v[1:-1, 1:-1] - (g * dt / (2 * dy)) * (h[1:-1, 2:] - h[1:-1, :-2])
 
-    # Corrector step (full step update)
     h[1:-1, 1:-1] -= (dt / dx) * (h_half[1:-1, 1:-1] * (u_half[2:, 1:-1] - u_half[:-2, 1:-1]))
     h[1:-1, 1:-1] -= (dt / dy) * (h_half[1:-1, 1:-1] * (v_half[1:-1, 2:] - v_half[1:-1, :-2]))
 
     u[1:-1, 1:-1] -= (g * dt / dx) * (h_half[2:, 1:-1] - h_half[:-2, 1:-1])
-    v[1:-1, 1:-1] -= (g * dt / (dy)) * (h_half[1:-1, 2:] - h_half[1:-1, :-2])
+    v[1:-1, 1:-1] -= (g * dt / dy) * (h_half[1:-1, 2:] - h_half[1:-1, :-2])
 
-    # Boundary conditions (zero-gradient)
-    u[:, 0] = u[:, 1]
-    u[:, -1] = u[:, -2]
-    u[0, :] = u[1, :]
-    u[-1, :] = u[-2, :]
+    # Boundary conditions
+    u[:, 0] = u[:, 1]; u[:, -1] = u[:, -2]
+    u[0, :] = u[1, :]; u[-1, :] = u[-2, :]
+    v[:, 0] = v[:, 1]; v[:, -1] = v[:, -2]
+    v[0, :] = v[1, :]; v[-1, :] = v[-2, :]
 
-    v[:, 0] = v[:, 1]
-    v[:, -1] = v[:, -2]
-    v[0, :] = v[1, :]
-    v[-1, :] = v[-2, :]
-
-    # Save data at specified steps
-    # if step in save_steps:
-
-    #     h_smoothed = gaussian_filter(h, sigma=4.0)
-    #     saved_h.append(h_smoothed.copy())
-
-    # Visualization at every 10 steps
-    if step % 1000 == 0:
+    current_time = step * dt
+    if step in save_steps:
         h_smoothed = gaussian_filter(h, sigma=3.0)
         saved_h.append(h_smoothed.copy())
-        current_time = step * dt
-    
+
+        np.savetxt(f"solution_outputs_numerical_circular/numerical_circular_t{current_time:.4f}.csv",
+                   h_smoothed, delimiter=",")
+
+        # Optional: Plot
         fig = plt.figure(figsize=(14, 6))
-    
-        # Surface Plot
         ax1 = fig.add_subplot(1, 2, 1, projection='3d')
         ax1.plot_surface(X, Y, h_smoothed, cmap='viridis', edgecolor='none')
         ax1.set_title(f'3D Surface at T = {current_time:.2f} s')
         ax1.set_xlabel('X')
         ax1.set_ylabel('Y')
         ax1.set_zlabel('Water Height')
-    
-        # Heatmap
+
         ax2 = fig.add_subplot(1, 2, 2)
-        heatmap = ax2.imshow(h_smoothed.T, extent=[0, Lx, 0, Ly], origin='lower', cmap='viridis', aspect='auto')
-        plt.colorbar(heatmap, ax=ax2, label='Water Height')
+        im = ax2.imshow(h_smoothed.T, extent=[0, Lx, 0, Ly], origin='lower',
+                        cmap='viridis', aspect='auto')
+        plt.colorbar(im, ax=ax2, label='Water Height')
         ax2.set_title(f'Contour Plot at T = {current_time:.2f} s')
         ax2.set_xlabel('X')
         ax2.set_ylabel('Y')
-    
+
         plt.tight_layout()
+        plt.savefig(f"solution_outputs_numerical_circular/numerical_circular_t{current_time:.4f}.png", dpi=300)
         plt.show()
-# # Convert saved data to arrays
-#saved_h = np.array(saved_h)
 
-# # Save the numerical solutions
-#p.save("h_numerical.npy", saved_h)
 
-#print(saved_h.shape)
