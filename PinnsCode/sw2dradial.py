@@ -163,100 +163,86 @@ net = dde.maps.FNN(
     kernel_initializer="Glorot uniform")
 #net.apply_output_transform(lambda x, y: func_IC_h_circular(x,y))
 
+os.makedirs("solution_outputs_gaussian", exist_ok=True)
 model = dde.Model(data, net)
 
 model.compile('adam', lr=0.0001)
-
-#model.train(iterations=12000)
-
 # Train the model and capture the training history
 losshistory, train_state = model.train(iterations=20000)
+loss_train = losshistory.loss_train
 
-# Plot the loss history
-dde.utils.plot_loss_history(losshistory)
+# Compute total loss by summing all components at each epoch
+total_loss = [sum(l) for l in loss_train]
+df = pd.DataFrame({"Step": range(1, len(total_loss)+1), "Loss": total_loss})
+df.to_csv("solution_outputs_gaussian/training_loss_gaussian.csv", index=False)
+
+plt.figure()
+plt.semilogy(total_loss, color='red', label="Training Loss (Tanh Activation)")
+plt.xlabel("# Steps")
+plt.ylabel("Loss")
 plt.title("Loss History")
-plt.show()
+plt.legend()
+plt.tight_layout()
+plt.savefig("solution_outputs_gaussian/training_loss_gaussian.png", dpi=300)
+plt.close()
 
-N_x = 401
-N_y =401
+plot_Time = [0.0, 0.5, 0.8, 1.0, 1.5, 2.0]
 
-# Plot for Side-by-Side Surface (2D) and Cross-section (1D)
-cross_section_y = 50.0  # Example: Fix Y = 50
 
-X_line = np.linspace(X_min, X_max, N_x)
-Y_fixed = np.ones_like(X_line) * cross_section_y
+N_x = 500
+N_y =500
 
-X_plot, Y_plot = np.meshgrid(
-    np.linspace(X_min, X_max, N_x), np.linspace(Y_min, Y_max, N_y)
-)
-X_flat = X_plot.flatten()
-Y_flat = Y_plot.flatten()
+X_plot, Y_plot = np.meshgrid(np.linspace(X_min, X_max, N_x), np.linspace(Y_min, Y_max, N_y))
+X_plot = X_plot.flatten()
+Y_plot = Y_plot.flatten()
 
-plot_Time = np.linspace(0.0, Time, 2001)
-for i, _ in enumerate(plot_Time):  # `_` is typically used instead of `dummy` if the variable is not needed
-    T_plot = np.ones_like(X_flat) * plot_Time[i]  # Changed to X_flat for correct shape
-    Q_plot = np.column_stack((X_flat, Y_flat, T_plot))  # Now Q_plot will have the correct shape
+# for i, dummy in enumerate(plot_Time):
+#     T_plot = np.ones_like(X_plot) * plot_Time[i]
+
+#     Q_plot = np.column_stack((X_plot, Y_plot, T_plot))
+#     W_plot = model.predict(Q_plot)
+#     Z_plot = W_plot[:, 0]
+
+#     Z_plot = np.reshape(Z_plot, (N_y, N_x))
+#     if i % 40 == 0:  # Plot every 10th time step
+
+#     # Plotting the contour plot
+#         fig=plt.figure()
+#         ax = fig.add_subplot(111, projection='3d')
+#         ax.plot_surface(X_plot.reshape(N_y, N_x), Y_plot.reshape(N_y, N_x), Z_plot, cmap="viridis")
+#         ax.set_xlabel('X')
+#         ax.set_ylabel('Y')
+#         ax.set_zlabel('Water Surface Height')
+#         ax.set_title(r'T $= {:.2f}$ [s]'.format(plot_Time[i]))
+#         plt.show()
+
+
+for t in plot_Time:  # Loop over the time steps
+    T_plot = np.ones_like(X_plot) * t
+    Q_plot = np.column_stack((X_plot, Y_plot, T_plot))
     W_plot = model.predict(Q_plot)
-    Z_plot = W_plot[:, 0]
-    Z_plot = np.reshape(Z_plot, (N_y, N_x))
+    Z_plot = W_plot[:, 0]  # Water surface height (h)
+    Z_plot = np.reshape(Z_plot, (N_y, N_x))  # Reshape to 2D grid for plotting
+    pd.DataFrame(Z_plot).to_csv(f"solution_outputs_gaussian/height_gaussian_t{t:.2f}.csv", index=False)
 
-    if i % 100 == 0:  # Plot every 10th time step
-        # Create a figure with two subplots
-        fig = plt.figure(figsize=(14, 6))
+    # Create a figure with two subplots
+    fig = plt.figure(figsize=(14, 6))
 
-        # 3D Surface plot on the left
-        ax_surface = fig.add_subplot(121, projection='3d')
-        ax_surface.plot_surface(X_plot.reshape(N_y, N_x), Y_plot.reshape(N_y, N_x), Z_plot, cmap='viridis')
-        ax_surface.set_xlabel('X')
-        ax_surface.set_ylabel('Y')
-        ax_surface.set_zlabel('Water Height')
-        ax_surface.set_title(f'3D Surface at T = {plot_Time[i]:.2f} s')
+    # 3D Surface plot on the left
+    ax_surface = fig.add_subplot(121, projection='3d')
+    ax_surface.plot_surface(X_plot.reshape(N_y, N_x), Y_plot.reshape(N_y, N_x), Z_plot, cmap='viridis')
+    ax_surface.set_xlabel('X')
+    ax_surface.set_ylabel('Y')
+    ax_surface.set_zlabel('Water Height')
+    ax_surface.set_title(f'3D Surface at T = {t:.2f} s')
 
-        # Contour (Heat map) plot on the right
-        ax_contour = fig.add_subplot(122)
-        heatmap = ax_contour.imshow(Z_plot, origin='lower', cmap='viridis', aspect='auto', extent=[X_min, X_max, Y_min, Y_max])
-        ax_contour.set_xlabel('X')
-        ax_contour.set_ylabel('Y')
-        ax_contour.set_title(f'Contour Plot at T = {plot_Time[i]:.2f} s')
-        plt.colorbar(heatmap, ax=ax_contour, label='Water Height')
+    # Contour (Heat map) plot on the right
+    ax_contour = fig.add_subplot(122)
+    heatmap = ax_contour.imshow(Z_plot, origin='lower', cmap='viridis', aspect='auto', extent=[X_min, X_max, Y_min, Y_max]) # Added extent
+    ax_contour.set_xlabel('X')
+    ax_contour.set_ylabel('Y')
+    ax_contour.set_title(f'Contour Plot at T = {t:.2f} s')
+    plt.colorbar(heatmap, ax=ax_contour, label='Water Height')
 
-        plt.tight_layout()
-        plt.show()
-
-#for i, t in enumerate(plot_Time):
- #   T_fixed = np.ones_like(X_line) * t
-  #   T_flat = np.ones_like(X_flat) * t
-
-    # Cross-section data
- #    Q_fixed = np.column_stack((X_line, Y_fixed, T_fixed))
-  #   W_fixed = model.predict(Q_fixed)
-    # h_fixed = W_fixed[:, 0]  # Extract water height (h)
-
-    # Surface data
-    # Q_plot = np.column_stack((X_flat, Y_flat, T_flat))
-    # W_plot = model.predict(Q_plot)
-    # Z_plot = W_plot[:, 0].reshape(N_y, N_x)  # Extract water height (h)
-
-     #if i % 100 == 0:  # Plot every 10th time step
-  #       fig = plt.figure(figsize=(14, 6))
-
-        # Plot 1: Surface
-    #     ax1 = fig.add_subplot(1, 2, 1, projection="3d")
-      #   ax1.plot_surface(
-        #     X_plot, Y_plot, Z_plot, cmap="viridis", edgecolor="none")
-    #     ax1.set_xlabel("X")
-    #     ax1.set_ylabel("Y")
-      #   ax1.set_zlabel("Water Height (h)")
-        # ax1.set_title(f"Surface Plot at T = {t:.2f} s")
-
-        # Plot 2: Cross-section
-    #     ax2 = fig.add_subplot(1, 2, 2)
-      #   ax2.plot(X_line, h_fixed, label=f"T = {t:.2f} s", color="blue")
-        # ax2.set_xlabel("X")
-      #   ax2.set_ylabel("Water Height (h)")
-       #  ax2.set_title(f"Cross-section at Y = {cross_section_y}, T = {t:.2f} s")
-      #   ax2.grid()
-     #    ax2.legend()
-
-       #  plt.tight_layout()
-         #plt.show()
+    plt.tight_layout()
+    plt.show()
