@@ -18,7 +18,9 @@ import matplotlib.pyplot as plt
 import numpy as np
 import deepxde as dde
 from deepxde.backend import tf
-
+from google.colab import files
+import pandas as pd
+import os
 dde.config.set_random_seed(42)
 dde.config.real.set_float32()
 
@@ -156,27 +158,39 @@ IC_BC = [IC_h, IC_u, IC_v, BC_u1, BC_u2, BC_v1, BC_v2]
 data = dde.data.TimePDE(
     geomtime, pde, IC_BC,
     num_domain=25000,
-    num_boundary=2000,
-    num_initial=45000)
+    num_boundary=4000,
+    num_initial=15000)
 
 net = dde.maps.FNN(
-    layer_sizes=[dim_input] + [100] * 6 + [dim_output],
+    layer_sizes=[dim_input] + [100] * 5 + [dim_output],
     activation="tanh",
     kernel_initializer="Glorot uniform")
 #net.apply_output_transform(lambda x, y: func_IC_h_circular(x,y))
-
+os.makedirs("solution_outputs_rec", exist_ok=True)
 model = dde.Model(data, net)
 
 model.compile('adam', lr=0.0001)
 # Train the model and capture the training history
 losshistory, train_state = model.train(iterations=20000)
+loss_train = losshistory.loss_train
 
-# Plot the loss history
-dde.utils.plot_loss_history(losshistory)
+# Compute total loss by summing all components at each epoch
+total_loss = [sum(l) for l in loss_train]
+df = pd.DataFrame({"Step": range(1, len(total_loss)+1), "Loss": total_loss})
+df.to_csv("solution_outputs_rec/training_loss_rec.csv", index=False)
+
+plt.figure()
+plt.semilogy(total_loss, color='red', label="Training Loss (Tanh Activation)")
+plt.xlabel("# Steps")
+plt.ylabel("Loss")
 plt.title("Loss History")
-plt.show()
+plt.legend()
+plt.tight_layout()
+plt.savefig("solution_outputs_rec/training_loss_rec.png", dpi=300)
+plt.close()
 
-plot_Time = np.linspace(0.0, Time, 200)
+plot_Time = [0.0, 0.5, 0.8, 1.0, 1.5, 2.0]
+
 
 N_x = 500
 N_y =500
@@ -204,54 +218,34 @@ Y_plot = Y_plot.flatten()
 #         ax.set_zlabel('Water Surface Height')
 #         ax.set_title(r'T $= {:.2f}$ [s]'.format(plot_Time[i]))
 #         plt.show()
-for i, _ in enumerate(plot_Time):  # Loop over the time steps
-    T_plot = np.ones_like(X_plot) * plot_Time[i]
+
+
+for t in plot_Time:  # Loop over the time steps
+    T_plot = np.ones_like(X_plot) * t
     Q_plot = np.column_stack((X_plot, Y_plot, T_plot))
     W_plot = model.predict(Q_plot)
     Z_plot = W_plot[:, 0]  # Water surface height (h)
     Z_plot = np.reshape(Z_plot, (N_y, N_x))  # Reshape to 2D grid for plotting
+    pd.DataFrame(Z_plot).to_csv(f"solution_outputs_rec/height_rectangle_t{t:.2f}.csv", index=False)
 
-    if i % 10 == 0:  # Plot every 10th time step
-        # Create a figure with two subplots
-        fig = plt.figure(figsize=(14, 6))
+    # Create a figure with two subplots
+    fig = plt.figure(figsize=(14, 6))
 
-        # 3D Surface plot on the left
-        ax_surface = fig.add_subplot(121, projection='3d')
-        ax_surface.plot_surface(X_plot.reshape(N_y, N_x), Y_plot.reshape(N_y, N_x), Z_plot, cmap='viridis')
-        ax_surface.set_xlabel('X')
-        ax_surface.set_ylabel('Y')
-        ax_surface.set_zlabel('Water Height')
-        ax_surface.set_title(f'3D Surface at T = {plot_Time[i]:.2f} s')
+    # 3D Surface plot on the left
+    ax_surface = fig.add_subplot(121, projection='3d')
+    ax_surface.plot_surface(X_plot.reshape(N_y, N_x), Y_plot.reshape(N_y, N_x), Z_plot, cmap='viridis')
+    ax_surface.set_xlabel('X')
+    ax_surface.set_ylabel('Y')
+    ax_surface.set_zlabel('Water Height')
+    ax_surface.set_title(f'3D Surface at T = {t:.2f} s')
 
-        # Contour (Heat map) plot on the right
-        ax_contour = fig.add_subplot(122)
-        heatmap = ax_contour.imshow(Z_plot, origin='lower', cmap='viridis', aspect='auto') # Change this line
-        ax_contour.set_xlabel('X')
-        ax_contour.set_ylabel('Y')
-        ax_contour.set_title(f'Contour Plot at T = {plot_Time[i]:.2f} s')
-        plt.colorbar(heatmap, ax=ax_contour, label='Water Height')
+    # Contour (Heat map) plot on the right
+    ax_contour = fig.add_subplot(122)
+    heatmap = ax_contour.imshow(Z_plot, origin='lower', cmap='viridis', aspect='auto', extent=[X_min, X_max, Y_min, Y_max]) # Added extent
+    ax_contour.set_xlabel('X')
+    ax_contour.set_ylabel('Y')
+    ax_contour.set_title(f'Contour Plot at T = {t:.2f} s')
+    plt.colorbar(heatmap, ax=ax_contour, label='Water Height')
 
-        plt.tight_layout()
-        plt.show()
-
-
-
-
-# for i, dummy in enumerate(plot_Time):
-
-#     T_plot = np.ones_like(X_plot) * plot_Time[i]
-
-#     Q_plot = np.column_stack((X_plot, Y_plot, T_plot))
-#     W_plot = model.predict(Q_plot)
-#     Z_plot = W_plot[:, 0]/scale_h
-
-#     Z_plot = np.reshape(Z_plot, (N_y, N_x))
-
-#     fig = plt.figure()
-#     ax = fig.add_subplot(111, projection='3d')
-#     ax.plot_surface(X_plot.reshape(N_y, N_x), Y_plot.reshape(N_y, N_x), Z_plot, cmap="viridis")
-#     ax.set_xlabel('X')
-#     ax.set_ylabel('Y')
-#     ax.set_zlabel('Water Surface Height')
-#     ax.set_title(r'T $= {:.2f}$ [s]'.format(plot_Time[i]))
-#     plt.show()
+    plt.tight_layout()
+    plt.show()
