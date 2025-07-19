@@ -12,23 +12,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 import deepxde as dde
 from deepxde.backend import tf
-from google.colab import files
-from scipy.interpolate import RegularGridInterpolator
 dde.config.set_random_seed(42)
 dde.config.real.set_float32()
-
-uploaded = files.upload()
-# Load the numerical data from the .npz file
-# Load the numerical data
-h_numerical = np.load("h_numerical.npy")  # Shape (4, 401, 401)
-time_numerical = np.linspace(0.0, 0.4, 4)  # Assuming 4 time steps for 0 to 0.4 seconds
-x_numerical = np.linspace(0.0, 100.0, 401)
-y_numerical = np.linspace(0.0, 100.0, 401)
-
-# Create an interpolator
-interpolator = RegularGridInterpolator(
-    (time_numerical, x_numerical, y_numerical), h_numerical, bounds_error=False, fill_value=None
-)
 
 dim_input = 3
 dim_output = 3
@@ -52,18 +37,45 @@ def boundary_x1(x, on_boundary):
 
 def boundary_x2(x, on_boundary):
     return on_boundary and np.isclose(x[0], X_max)
-
 def boundary_y1(x, on_boundary):
     return on_boundary and np.isclose(x[1], Y_min)
 
 def boundary_y2(x, on_boundary):
     return on_boundary and np.isclose(x[1], Y_max)
+# def func_IC_h(x):
+#     h_r = 1.0  # Height on the right side
+#     h_l = 0.02  # Height on the left side
+#     return np.where(x[:, 0:1] <= X_0, h_r, h_l)
 
 def func_IC_h(x):
-    t = x[:, 2]  # Extract time
-    points = np.column_stack((t, x[:, 0], x[:, 1]))
-    h_interp = interpolator(points)
-    return np.expand_dims(h_interp, axis=1)
+    center_x=50.0
+    center_y=50.0
+    radius=20
+    return 10.0 * ((x[:, 0:1] - center_x) * (x[:, 0:1] - center_x) + \
+                    (x[:, 1:2] - center_y) * (x[:, 1:2] - center_y) <= \
+                        (radius*radius)) + \
+            1.0 * ((x[:, 0:1] - center_x) * (x[:, 0:1] - center_x) + \
+                  (x[:, 1:2] - center_y) * (x[:, 1:2] - center_y) > \
+                      (radius*radius))
+# Create a meshgrid for plotting
+N = 100
+X_plot, Y_plot = np.meshgrid(np.linspace(0, 100, N), np.linspace(0, 100, N))
+X_flat = X_plot.flatten()
+Y_flat = Y_plot.flatten()
+T_flat = np.zeros_like(X_flat)  # Assuming t=0 for the initial condition
+Q_plot = np.column_stack((X_flat, Y_flat, T_flat))
+h_plot=func_IC_h(Q_plot).reshape(N, N)
+
+# # Plot the initial condition with a surface plot
+fig = plt.figure()
+ax = fig.add_subplot(111, projection='3d')
+ax.plot_surface(X_plot, Y_plot, h_plot, cmap='viridis')
+ax.set_xlabel('X')
+ax.set_ylabel('Y')
+ax.set_zlabel('Water Surface Height')
+ax.set_title('Circular Dam Break Initial Condition')
+plt.show()
+
 
 def func_IC_u(x):
     return np.zeros([len(x), 1])
@@ -160,58 +172,66 @@ net = dde.maps.FNN(
     activation="tanh",
     kernel_initializer="Glorot uniform")
 
+os.makedirs("solution_outputs_circular", exist_ok=True)
 model = dde.Model(data, net)
 
-# Compile the model using the Adam optimizer
 model.compile('adam', lr=0.0001)
-
 # Train the model and capture the training history
-losshistory, train_state = model.train(iterations=16000)
+losshistory, train_state = model.train(iterations=20000)
+loss_train = losshistory.loss_train
 
-# Plot the loss history
-dde.utils.plot_loss_history(losshistory)
+# Compute total loss by summing all components at each epoch
+total_loss = [sum(l) for l in loss_train]
+df = pd.DataFrame({"Step": range(1, len(total_loss)+1), "Loss": total_loss})
+df.to_csv("solution_outputs_circular/training_loss_circular.csv", index=False)
+
+plt.figure()
+plt.semilogy(total_loss, color='red', label="Training Loss (Tanh Activation)")
+plt.xlabel("# Steps")
+plt.ylabel("Loss")
 plt.title("Loss History")
-plt.show()
+plt.legend()
+plt.tight_layout()
+plt.savefig("solution_outputs_circular/training_loss_circular.png", dpi=300)
+plt.close()
 
-# Visualization: Plot the predictions for future time steps
-N_x = 401
-N_y = 401
+plot_Time = [0.0, 0.5, 0.8, 1.0, 1.5, 2.0]
 
-# Plot for Side-by-Side Surface (2D) and Cross-section (1D)
-cross_section_y = 50.0  # Example: Fix Y = 50
 
-X_line = np.linspace(X_min, X_max, N_x)
-Y_fixed = np.ones_like(X_line) * cross_section_y
+N_x = 500
+N_y =500
 
 X_plot, Y_plot = np.meshgrid(np.linspace(X_min, X_max, N_x), np.linspace(Y_min, Y_max, N_y))
-X_flat = X_plot.flatten()
-Y_flat = Y_plot.flatten()
+X_plot = X_plot.flatten()
+Y_plot = Y_plot.flatten()
 
-plot_Time = np.linspace(0.0, Time, 2001)
 
-for i, _ in enumerate(plot_Time):
-    T_plot = np.ones_like(X_flat) * plot_Time[i]
-    Q_plot = np.column_stack((X_flat, Y_flat, T_plot))
+for t in plot_Time:  # Loop over the time steps
+    T_plot = np.ones_like(X_plot) * t
+    Q_plot = np.column_stack((X_plot, Y_plot, T_plot))
     W_plot = model.predict(Q_plot)
-    Z_plot = W_plot[:, 0]
-    Z_plot = np.reshape(Z_plot, (N_y, N_x))
+    Z_plot = W_plot[:, 0]  # Water surface height (h)
+    Z_plot = np.reshape(Z_plot, (N_y, N_x))  # Reshape to 2D grid for plotting
+    pd.DataFrame(Z_plot).to_csv(f"solution_outputs_circular/height_circular_t{t:.2f}.csv", index=False)
 
-    if i % 100 == 0:
-        fig = plt.figure(figsize=(14, 6))
+    # Create a figure with two subplots
+    fig = plt.figure(figsize=(14, 6))
 
-        ax_surface = fig.add_subplot(121, projection='3d')
-        ax_surface.plot_surface(X_plot.reshape(N_y, N_x), Y_plot.reshape(N_y, N_x), Z_plot, cmap='viridis')
-        ax_surface.set_xlabel('X')
-        ax_surface.set_ylabel('Y')
-        ax_surface.set_zlabel('Water Height')
-        ax_surface.set_title(f'3D Surface at T = {plot_Time[i]:.2f} s')
+    # 3D Surface plot on the left
+    ax_surface = fig.add_subplot(121, projection='3d')
+    ax_surface.plot_surface(X_plot.reshape(N_y, N_x), Y_plot.reshape(N_y, N_x), Z_plot, cmap='viridis')
+    ax_surface.set_xlabel('X')
+    ax_surface.set_ylabel('Y')
+    ax_surface.set_zlabel('Water Height')
+    ax_surface.set_title(f'3D Surface at T = {t:.2f} s')
 
-        ax_contour = fig.add_subplot(122)
-        heatmap = ax_contour.imshow(Z_plot, origin='lower', cmap='viridis', aspect='auto', extent=[X_min, X_max, Y_min, Y_max])
-        ax_contour.set_xlabel('X')
-        ax_contour.set_ylabel('Y')
-        ax_contour.set_title(f'Contour Plot at T = {plot_Time[i]:.2f} s')
-        plt.colorbar(heatmap, ax=ax_contour, label='Water Height')
+    # Contour (Heat map) plot on the right
+    ax_contour = fig.add_subplot(122)
+    heatmap = ax_contour.imshow(Z_plot, origin='lower', cmap='viridis', aspect='auto', extent=[X_min, X_max, Y_min, Y_max]) # Added extent
+    ax_contour.set_xlabel('X')
+    ax_contour.set_ylabel('Y')
+    ax_contour.set_title(f'Contour Plot at T = {t:.2f} s')
+    plt.colorbar(heatmap, ax=ax_contour, label='Water Height')
 
-        plt.tight_layout()
-        plt.show()
+    plt.tight_layout()
+    plt.show()
