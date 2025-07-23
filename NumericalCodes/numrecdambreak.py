@@ -6,8 +6,8 @@ from scipy.ndimage import gaussian_filter
 # Parameters
 Lx = 100.0  # Length of the domain in the x-direction (m)
 Ly = 100.0  # Length of the domain in the y-direction (m)
-Nx = 401    # Number of grid points in the x-direction
-Ny = 401    # Number of grid points in the y-direction
+Nx = 501    # Number of grid points in the x-direction
+Ny = 501    # Number of grid points in the y-direction
 T = 2.0    # Total simulation time (s)
 dt = 0.0001 # Time step (s)
 g = 3.81    # Gravity constant (m/s^2)
@@ -49,6 +49,16 @@ plt.show()
 h = h0.copy()
 u = np.zeros_like(h)
 v = np.zeros_like(h)
+import os
+
+
+# Prepare output directory
+output_dir = "solution_outputs_rectangular_numerical"
+os.makedirs(output_dir, exist_ok=True)
+
+# Desired save times (in seconds)
+save_times = [0.0, 0.5, 0.8, 1.0, 1.5, 2.0]
+save_steps = [int(t / dt) for t in save_times]
 
 # Lax-Wendroff Scheme
 for step in range(int(T / dt)):
@@ -80,29 +90,41 @@ for step in range(int(T / dt)):
     v[:, -1] = v[:, -2]
     v[0, :] = v[1, :]
     v[-1, :] = v[-2, :]
-    # Visualization every 100 steps
-    if step % 100 == 0:
+
+
+    if step in save_steps:
         h_smoothed = gaussian_filter(h, sigma=4.0)
         current_time = step * dt
-    
+
+        # Save CSV file
+        filename_csv = os.path.join(output_dir, f"rectangular_t{current_time:.4f}.csv")
+        np.savetxt(filename_csv, h_smoothed, delimiter=",")
+
+        # Create surface + heatmap side by side
         fig = plt.figure(figsize=(14, 6))
-    
-        # Surface Plot
+
+        # 3D Surface Plot
         ax1 = fig.add_subplot(1, 2, 1, projection='3d')
         ax1.plot_surface(X, Y, h_smoothed, cmap='viridis', edgecolor='none')
         ax1.set_title(f'3D Surface at T = {current_time:.2f} s')
         ax1.set_xlabel('X')
         ax1.set_ylabel('Y')
         ax1.set_zlabel('Water Height')
-    
-        # Heatmap
+
+        # Heatmap Plot (with imshow)
         ax2 = fig.add_subplot(1, 2, 2)
-        heatmap = ax2.imshow(h_smoothed.T, extent=[0, Lx, 0, Ly], origin='lower', cmap='viridis', aspect='auto')
-        plt.colorbar(heatmap, ax=ax2, label='Water Height')
-        ax2.set_title(f'Contour Plot at T = {current_time:.2f} s')
+        im = ax2.imshow(h_smoothed.T, extent=[0, Lx, 0, Ly], origin='lower',
+                        cmap='viridis', aspect='auto')
+        plt.colorbar(im, ax=ax2, label='Water Height')
+        ax2.set_title(f'Heatmap at T = {current_time:.2f} s')
         ax2.set_xlabel('X')
         ax2.set_ylabel('Y')
-    
+
         plt.tight_layout()
+
+        # Save plot as image
+     #   filename_png = os.path.join(output_dir, f"rectangular_t{current_time:.4f}.png")
+      #  plt.savefig(filename_png, dpi=300)
         plt.show()
+
  
