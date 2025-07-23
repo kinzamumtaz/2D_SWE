@@ -12,6 +12,10 @@ import matplotlib.pyplot as plt
 import numpy as np
 import deepxde as dde
 from deepxde.backend import tf
+from google.colab import files
+import os
+import pandas as pd
+from mpl_toolkits.mplot3d import Axes3D
 dde.config.set_random_seed(42)
 dde.config.real.set_float32()
 
@@ -52,10 +56,10 @@ dde.config.set_random_seed(42)
 dde.config.real.set_float32()
 uploaded = files.upload()
 # Load the numerical data
-h_numerical = np.load("h_numerical.npy")  # Shape (4, 401, 401)
-time_numerical = np.linspace(0.0, 0.6, 4)  # Available time steps: [0, 0.1, 0.2, 0.3]
-x_numerical = np.linspace(0.0, 100.0, 401)
-y_numerical = np.linspace(0.0, 100.0, 401)
+h_numerical = np.load("h_numerical_0.7.npy")  # Shape (4, 401, 401)
+time_numerical = np.linspace(0.0, 0.7, 8)  # Available time steps: [0, 0.1, 0.2, 0.3]
+x_numerical = np.linspace(0.0, 100.0, 501)
+y_numerical = np.linspace(0.0, 100.0, 501)
 
 # Create an interpolator for the initial condition
 interpolator = RegularGridInterpolator(
@@ -74,7 +78,7 @@ g = 5.81
 # Define the initial condition for h, u, and v using t=0 from `h_numerical`
 def func_IC_h(x):
     t = x[:, 2]  # Extract time
-    points = np.column_stack((np.full_like(t, 0.6), x[:, 0], x[:, 1]))  # t=0 for IC
+    points = np.column_stack((np.full_like(t, 0.7), x[:, 0], x[:, 1]))  # t=0 for IC
     h_interp = interpolator(points)
     return np.expand_dims(h_interp, axis=1)
 
@@ -136,7 +140,7 @@ geom = dde.geometry.Rectangle([X_min, Y_min],[X_max, Y_max])
 timedomain = dde.geometry.TimeDomain(0.0, Time)
 geomtime = dde.geometry.GeometryXTime(geom, timedomain)
 
-IC_h = dde.IC(geomtime, func_IC_h, lambda x, _: x[2] <= 0.4, component=0)
+IC_h = dde.IC(geomtime, func_IC_h, lambda x, _: x[2] <= 0.7, component=0)
 
 IC_u = dde.IC(geomtime, func_IC_u, on_initial, component = 1)
 IC_v = dde.IC(geomtime, func_IC_v, on_initial, component = 2)
@@ -184,7 +188,7 @@ plt.tight_layout()
 plt.savefig("solution_outputs_circularNum/training_loss_circularNum.png", dpi=300)
 plt.close()
 
-plot_Time = [0.0, 0.5, 0.8, 1.0, 1.5, 2.0]
+plot_Time = [0.0, 0.1, 0.3, 0.5, 0.7, 0.8,1.0, 1.5,2.0]
 
 
 N_x = 500
