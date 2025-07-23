@@ -14,8 +14,8 @@ from scipy.ndimage import gaussian_filter
 # Parameters
 Lx = 100.0  # Length of the domain in the x-direction
 Ly = 100.0  # Length of the domain in the y-direction
-Nx = 401   # Number of grid points in the x-direction
-Ny = 401   # Number of grid points in the y-direction
+Nx = 501   # Number of grid points in the x-direction
+Ny = 501   # Number of grid points in the y-direction
 T = 2.0   # Total simulation time
 dt = 0.0001  # Time step (set based on CFL condition)
 g = 2.0     # Gravity constant
@@ -48,8 +48,7 @@ h_inner = 10.0                   # Height inside the dam
 h_outer = 1.0                    # Height outside the dam
 
 # Grid points
-x = np.linspace(0, 100, 401)     # Define your x-coordinates
-y = np.linspace(0, 100, 401)     # Define your y-coordinates
+     # Define your y-coordinates
 X, Y = np.meshgrid(x, y)         # Create 2D grid
 r = np.sqrt((X - center_x)**2 + (Y - center_y)**2)  # Compute radial distance
 
@@ -84,7 +83,7 @@ plt.show()  # instead of save
 saved_h = []
 
 # Times to save
-save_times = [0.0, 0.5, 0.8, 1.0, 1.5, 2.0]
+save_times =[0.0, 0.5, 0.7, 0.8,1.0, 1.2,1.5,1.7,2.0]
 save_steps = [int(t / dt) for t in save_times]
 
 # Create output folder
@@ -142,7 +141,7 @@ for step in range(int(max(save_times) / dt) + 1):
         ax2.set_ylabel('Y')
 
         plt.tight_layout()
-        plt.savefig(f"solution_outputs_numerical_circular/numerical_circular_t{current_time:.4f}.png", dpi=300)
+  #      plt.savefig(f"solution_outputs_numerical_circular/numerical_circular_t{current_time:.4f}.png", dpi=300)
         plt.show()
 
 
