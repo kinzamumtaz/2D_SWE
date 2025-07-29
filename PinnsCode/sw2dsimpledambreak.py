@@ -160,7 +160,7 @@ model.compile('adam', lr=0.0001)
 #model.train(iterations=12000)
 os.makedirs("solution_outputs_2dstep", exist_ok=True)
 # Train the model and capture the training history
-losshistory, train_state = model.train(iterations=12000)
+losshistory, train_state = model.train(iterations=20000)
 
 loss_train = losshistory.loss_train
 
@@ -194,48 +194,47 @@ X_plot, Y_plot = np.meshgrid(
 X_flat = X_plot.flatten()
 Y_flat = Y_plot.flatten()
 
-plot_Time = np.linspace(0.0, Time, 200)
+plot_times = [0.0, 0.2, 0.5, 0.8, 0.9, 1.0]
 
-for i, t in enumerate(plot_Time):
+for i, t in enumerate(plot_times):
     T_fixed = np.ones_like(X_line) * t
     T_flat = np.ones_like(X_flat) * t
 
-    # Cross-section data
+    # Cross-section prediction
     Q_fixed = np.column_stack((X_line, Y_fixed, T_fixed))
     W_fixed = model.predict(Q_fixed)
-    h_fixed = W_fixed[:, 0]  # Extract water height (h)
+    h_fixed = W_fixed[:, 0]
 
-    # Surface data
+    # Surface prediction
     Q_plot = np.column_stack((X_flat, Y_flat, T_flat))
     W_plot = model.predict(Q_plot)
-    Z_plot = W_plot[:, 0].reshape(N_y, N_x)  # Extract water height (h)
-    pd.DataFrame(Z_plot).to_csv(f"solution_outputs_2dstep/2dstep_t{i:04d}.csv", index=False)
-    if i % 10 == 0:  # Plot every 10th time step
-        fig = plt.figure(figsize=(14, 6))
+    Z_plot = W_plot[:, 0].reshape(N_y, N_x)
 
-        # Plot 1: Surface
-        ax1 = fig.add_subplot(1, 2, 1, projection="3d")
-        ax1.plot_surface(
-            X_plot, Y_plot, Z_plot, cmap="viridis", edgecolor="none"
-        )
-        ax1.set_xlabel("X")
-        ax1.set_ylabel("Y")
-        ax1.set_zlabel("Water Height (h)")
-        ax1.set_title(f"Surface Plot at T = {t:.2f} s")
+    # Save height surface as CSV
+    filename_csv = f"solution_outputs_2dstep/2dstep_t{t:.2f}.csv"
+    pd.DataFrame(Z_plot).to_csv(filename_csv, index=False)
+    print(f"Saved: {filename_csv}")
 
-        # Plot 2: Cross-section
-        ax2 = fig.add_subplot(1, 2, 2)
-        ax2.plot(X_line, h_fixed, label=f"T = {t:.2f} s", color="blue")
-        ax2.set_xlabel("X")
-        ax2.set_ylabel("Water Height (h)")
-        ax2.set_title(f"Cross-section at Y = {cross_section_y}, T = {t:.2f} s")
-        ax2.grid()
-        ax2.legend()
+    # Plot and save PNG
+    fig = plt.figure(figsize=(14, 6))
 
-        plt.tight_layout()
-        plt.show()
+    # Plot 1: Surface plot
+    ax1 = fig.add_subplot(1, 2, 1, projection="3d")
+    ax1.plot_surface(X_plot, Y_plot, Z_plot, cmap="viridis", edgecolor="none")
+    ax1.set_xlabel("X")
+    ax1.set_ylabel("Y")
+    ax1.set_zlabel("Water Height (h)")
+    ax1.set_title(f"Surface Plot at T = {t:.2f} s")
 
-!ls solution_outputs_2dstep
-!zip -r solution_outputs_2dstep.zip solution_outputs_2dstep
-from google.colab import files
-files.download("solution_outputs_2dstep.zip")
+    # Plot 2: Cross-section
+    ax2 = fig.add_subplot(1, 2, 2)
+    ax2.plot(X_line, h_fixed, label=f"T = {t:.2f} s", color="blue")
+    ax2.set_xlabel("X")
+    ax2.set_ylabel("Water Height (h)")
+    ax2.set_title(f"Cross-section at Y = {cross_section_y}, T = {t:.2f} s")
+    ax2.grid()
+    ax2.legend()
+
+    plt.tight_layout()
+
+    plt.show()
