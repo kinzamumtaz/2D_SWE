@@ -123,7 +123,7 @@ def pde(x, y):
 
 # Create a meshgrid for plotting
 # Create a meshgrid for plotting with the correct dimensions
-N = 401  # Change N to match the dimensions of t0_data
+N = 501  # Change N to match the dimensions of t0_data
 X_plot, Y_plot = np.meshgrid(np.linspace(0, 100, N), np.linspace(0, 100, N))
 X_flat = X_plot.flatten()
 Y_flat = Y_plot.flatten()
@@ -183,7 +183,7 @@ loss_train = losshistory.loss_train
 # Compute total loss by summing all components at each epoch
 total_loss = [sum(l) for l in loss_train]
 df = pd.DataFrame({"Step": range(1, len(total_loss)+1), "Loss": total_loss})
-df.to_csv("solution_outputs_circular/training_loss_circular.csv", index=False)
+df.to_csv("solution_outputs_circular/training_loss_circular.csv", index=False, header=False)
 
 plt.figure()
 plt.semilogy(total_loss, color='red', label="Training Loss (Tanh Activation)")
@@ -198,8 +198,8 @@ plt.close()
 plot_Time = [0.0, 0.5, 0.8, 1.0, 1.5, 2.0]
 
 
-N_x = 500
-N_y =500
+N_x = 501
+N_y =501
 
 X_plot, Y_plot = np.meshgrid(np.linspace(X_min, X_max, N_x), np.linspace(Y_min, Y_max, N_y))
 X_plot = X_plot.flatten()
@@ -212,7 +212,7 @@ for t in plot_Time:  # Loop over the time steps
     W_plot = model.predict(Q_plot)
     Z_plot = W_plot[:, 0]  # Water surface height (h)
     Z_plot = np.reshape(Z_plot, (N_y, N_x))  # Reshape to 2D grid for plotting
-    pd.DataFrame(Z_plot).to_csv(f"solution_outputs_circular/height_circular_t{t:.2f}.csv", index=False)
+    pd.DataFrame(Z_plot).to_csv(f"solution_outputs_circular/height_circular_t{t:.2f}.csv", index=False, header=False)
 
     # Create a figure with two subplots
     fig = plt.figure(figsize=(14, 6))
