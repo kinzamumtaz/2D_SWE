@@ -143,9 +143,9 @@ IC_BC = [IC_h, IC_u, IC_v, BC_u1, BC_u2, BC_v1, BC_v2]
 
 data = dde.data.TimePDE(
     geomtime, pde, IC_BC,
-    num_domain=20000,
-    num_boundary=1000,
-    num_initial=20000)
+    num_domain=25000,
+    num_boundary=10000,
+    num_initial=25000)
 
 net = dde.maps.FNN(
     layer_sizes=[dim_input] + [100] * 5 + [dim_output],
