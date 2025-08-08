@@ -57,7 +57,7 @@ def func_IC_h(x):
 #                       (radius*radius))
 # Create a meshgrid for plotting
 # Create a meshgrid for plotting
-N = 1000
+N = 501
 X_plot, Y_plot = np.meshgrid(np.linspace(0, 100, N), np.linspace(0, 100, N))
 X_flat = X_plot.flatten()
 Y_flat = Y_plot.flatten()
@@ -167,7 +167,7 @@ loss_train = losshistory.loss_train
 # Compute total loss by summing all components at each epoch
 total_loss = [sum(l) for l in loss_train]
 df = pd.DataFrame({"Step": range(1, len(total_loss)+1), "Loss": total_loss})
-df.to_csv("solution_outputs_2dstep/training_loss_2dstep.csv", index=False)
+df.to_csv("solution_outputs_2dstep/training_loss_2dstep.csv", index=False, header=False)
 
 plt.figure()
 plt.semilogy(total_loss, color='red', label="Training Loss")
@@ -179,8 +179,8 @@ plt.tight_layout()
 plt.savefig("solution_outputs_2dstep/training_loss_plot_2dstep.png", dpi=300)
 plt.close()
 
-N_x = 500
-N_y =500
+N_x = 501
+N_y =501
 
 # Plot for Side-by-Side Surface (2D) and Cross-section (1D)
 cross_section_y = 50.0  # Example: Fix Y = 50
@@ -212,7 +212,7 @@ for i, t in enumerate(plot_times):
 
     # Save height surface as CSV
     filename_csv = f"solution_outputs_2dstep/2dstep_t{t:.2f}.csv"
-    pd.DataFrame(Z_plot).to_csv(filename_csv, index=False)
+    pd.DataFrame(Z_plot).to_csv(filename_csv, index=False, header=False)
     print(f"Saved: {filename_csv}")
 
     # Plot and save PNG
