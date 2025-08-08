@@ -116,7 +116,7 @@ def pde(x, y):
     equaz_3 = U3_t + E3_x + G3_y
 
     return [equaz_1, equaz_2, equaz_3]
-N = 401  # Change N to match the dimensions of t0_data
+N = 501  # Change N to match the dimensions of t0_data
 X_plot, Y_plot = np.meshgrid(np.linspace(0, 100, N), np.linspace(0, 100, N))
 X_flat = X_plot.flatten()
 Y_flat = Y_plot.flatten()
@@ -155,9 +155,9 @@ IC_BC = [IC_h, IC_u, IC_v, BC_u1, BC_u2, BC_v1, BC_v2]
 # Create the TimePDE data object
 data = dde.data.TimePDE(
     geomtime, pde, IC_BC,
-    num_domain=20000,
-    num_boundary=1000,
-    num_initial=20000)
+    num_domain=25000,
+    num_boundary=10000,
+    num_initial=25000)
 
 # Define the neural network model
 net = dde.maps.FNN(
