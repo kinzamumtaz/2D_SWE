@@ -71,7 +71,7 @@ def func_IC_h(x):
     return 5.0 * inside_rectangle + 0.2 * ~inside_rectangle
 
 # Create a meshgrid for plotting
-N = 500
+N = 501
 X_plot, Y_plot = np.meshgrid(np.linspace(0, 100, N), np.linspace(0, 100, N))
 X_flat = X_plot.flatten()
 Y_flat = Y_plot.flatten()
@@ -158,8 +158,8 @@ IC_BC = [IC_h, IC_u, IC_v, BC_u1, BC_u2, BC_v1, BC_v2]
 data = dde.data.TimePDE(
     geomtime, pde, IC_BC,
     num_domain=25000,
-    num_boundary=4000,
-    num_initial=15000)
+    num_boundary=10000,
+    num_initial=25000)
 
 net = dde.maps.FNN(
     layer_sizes=[dim_input] + [100] * 5 + [dim_output],
